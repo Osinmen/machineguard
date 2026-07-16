@@ -17,9 +17,10 @@ class ApiService {
 
   Future<bool> checkHealth() async {
     try {
+      // Longer timeout: Render free tier can take 30-60s to wake from sleep
       final response = await http
           .get(Uri.parse('$_v1/health'))
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 60));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data['status'] == 'ok' && data['model_loaded'] == true;
@@ -31,23 +32,34 @@ class ApiService {
   }
 
   Future<PredictionResult> predict(SensorInput input) async {
-    final response = await http
-        .post(
-          Uri.parse('$_v1/predict'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode(input.toJson()),
-        )
-        .timeout(const Duration(seconds: 30));
+    try {
+      // Bumped from 30s -> 90s. Render's free tier spins down after ~15 min
+      // idle and can take 30-60s+ to wake back up on the first request.
+      final response = await http
+          .post(
+            Uri.parse('$_v1/predict'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(input.toJson()),
+          )
+          .timeout(const Duration(seconds: 90));
 
-    if (response.statusCode == 200) {
-      return PredictionResult.fromJson(jsonDecode(response.body));
-    } else if (response.statusCode == 422) {
-      final detail = jsonDecode(response.body)['detail'];
-      throw Exception('Validation error: $detail');
-    } else if (response.statusCode == 503) {
-      throw Exception('Model not loaded on server. Please try again later.');
-    } else {
-      throw Exception('Prediction failed (${response.statusCode})');
+      if (response.statusCode == 200) {
+        return PredictionResult.fromJson(jsonDecode(response.body));
+      } else if (response.statusCode == 422) {
+        final detail = jsonDecode(response.body)['detail'];
+        throw Exception('Validation error: $detail');
+      } else if (response.statusCode == 503) {
+        throw Exception('Model not loaded on server. Please try again later.');
+      } else {
+        throw Exception('Prediction failed (${response.statusCode})');
+      }
+    } on Exception catch (e) {
+      if (e.toString().contains('TimeoutException')) {
+        throw Exception(
+            'Server took too long to respond. It may be waking up from '
+            'sleep (Render free tier) — please try again in a moment.');
+      }
+      rethrow;
     }
   }
 
@@ -55,7 +67,7 @@ class ApiService {
     try {
       final response = await http
           .get(Uri.parse('$_v1/machines/types'))
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 60));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return List<String>.from(data['machine_types']);

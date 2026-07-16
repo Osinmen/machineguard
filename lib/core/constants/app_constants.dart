@@ -1,7 +1,7 @@
 class AppConstants {
   static const String appName       = 'MachineGuard';
   static const String appVersion    = '1.0.0';
-  static const String defaultApiUrl = 'http://10.208.46.18:8000';
+  static const String defaultApiUrl = 'https://machinefaultdetection.onrender.com';
   static const String apiV1         = '/api/v1';
 
   // Risk thresholds — must match backend config.py
@@ -12,7 +12,7 @@ class AppConstants {
   static const String prefApiUrl = 'api_url';
 
   // DB
-  static const String dbName       = 'machineguard.db';
+  static const String dbName       = 'machineguard.db'; //machine name database 
   static const int    dbVersion    = 1;
   static const String tableHistory = 'prediction_history';
 
