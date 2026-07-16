@@ -57,7 +57,7 @@ class ApiService {
       if (e.toString().contains('TimeoutException')) {
         throw Exception(
             'Server took too long to respond. It may be waking up from '
-            'sleep (Render free tier) — please try again in a moment.');
+            'sleep (Render free tier: please try again in a moment.');
       }
       rethrow;
     }

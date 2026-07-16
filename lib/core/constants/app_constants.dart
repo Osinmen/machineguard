@@ -13,7 +13,7 @@ class AppConstants {
 
   // DB
   static const String dbName       = 'machineguard.db'; //machine name database 
-  static const int    dbVersion    = 1;
+  static const int    dbVersion    = 2;
   static const String tableHistory = 'prediction_history';
 
   // Real machine types from training dataset

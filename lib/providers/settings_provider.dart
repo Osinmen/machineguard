@@ -7,11 +7,12 @@ class SettingsProvider extends ChangeNotifier {
 
   String get apiUrl => _apiUrl;
 
-  Future<void> load() async {
-    final prefs = await SharedPreferences.getInstance();
-    _apiUrl = prefs.getString(AppConstants.prefApiUrl) ?? AppConstants.defaultApiUrl;
-    notifyListeners();
-  }
+ Future<void> resetToDefault() async {
+  _apiUrl = AppConstants.defaultApiUrl;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove(AppConstants.prefApiUrl);
+  notifyListeners();
+}
 
   Future<void> updateApiUrl(String url) async {
     _apiUrl = url;

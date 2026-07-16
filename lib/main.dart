@@ -11,24 +11,23 @@ import 'package:machine_guard/screens/prediction/prediction_screen.dart';
 import 'package:machine_guard/screens/history/history_screen.dart';
 import 'package:machine_guard/screens/settings/settings_screen.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  final settings = SettingsProvider();
-  await settings.load();
-  runApp(MachineGuardApp(settings: settings));
+  runApp(const MachineGuardApp());
 }
 
 class MachineGuardApp extends StatelessWidget {
-  final SettingsProvider settings;
-  const MachineGuardApp({super.key, required this.settings});
+  const MachineGuardApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final apiService = ApiService(baseUrl: settings.apiUrl);
+    // apiUrl is now a fixed getter (always AppConstants.defaultApiUrl / Render),
+    // so ApiService can be built directly without waiting on any async load.
+    final apiService = ApiService(baseUrl: AppConstants.defaultApiUrl);
 
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider.value(value: settings),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => PredictionProvider(apiService)),
         ChangeNotifierProvider(create: (_) => HistoryProvider()),
       ],
@@ -71,10 +70,26 @@ class _MainShellState extends State<MainShell> {
           currentIndex: _currentIndex,
           onTap: (i) => setState(() => _currentIndex = i),
           items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), activeIcon: Icon(Icons.dashboard), label: 'Dashboard'),
-            BottomNavigationBarItem(icon: Icon(Icons.sensors_outlined), activeIcon: Icon(Icons.sensors), label: 'Predict'),
-            BottomNavigationBarItem(icon: Icon(Icons.history_outlined), activeIcon: Icon(Icons.history), label: 'History'),
-            BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), activeIcon: Icon(Icons.settings), label: 'Settings'),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.dashboard_outlined),
+              activeIcon: Icon(Icons.dashboard),
+              label: 'Dashboard',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.sensors_outlined),
+              activeIcon: Icon(Icons.sensors),
+              label: 'Predict',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.history_outlined),
+              activeIcon: Icon(Icons.history),
+              label: 'History',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.settings_outlined),
+              activeIcon: Icon(Icons.settings),
+              label: 'Settings',
+            ),
           ],
         ),
       ),

@@ -27,6 +27,35 @@ class DatabaseService {
             risk_percentage REAL NOT NULL,
             risk_level TEXT NOT NULL,
             recommendation TEXT NOT NULL,
+            sensor_alerts TEXT NOT NULL,
+            alert_count INTEGER NOT NULL,
+            critical_count INTEGER NOT NULL,
+            warning_count INTEGER NOT NULL,
+            model_version TEXT NOT NULL,
+            timestamp TEXT NOT NULL
+          )
+        ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        // Old installs may have the pre-sensor_alerts, pre-machine_id-removal
+        // schema. Simplest safe migration for a dev-stage app: drop and
+        // recreate. This clears existing local history on upgrade — fine
+        // for a project still in development with no real user data to
+        // preserve.
+        await db.execute('DROP TABLE IF EXISTS ${AppConstants.tableHistory}');
+        await db.execute('''
+          CREATE TABLE ${AppConstants.tableHistory} (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            machine_id TEXT NOT NULL,
+            prediction INTEGER NOT NULL,
+            risk_probability REAL NOT NULL,
+            risk_percentage REAL NOT NULL,
+            risk_level TEXT NOT NULL,
+            recommendation TEXT NOT NULL,
+            sensor_alerts TEXT NOT NULL,
+            alert_count INTEGER NOT NULL,
+            critical_count INTEGER NOT NULL,
+            warning_count INTEGER NOT NULL,
             model_version TEXT NOT NULL,
             timestamp TEXT NOT NULL
           )

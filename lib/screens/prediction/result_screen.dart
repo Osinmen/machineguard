@@ -450,7 +450,7 @@ class ResultScreen extends StatelessWidget {
   }
 }
 
-// ── Gauge Painter ──────────────────────────────────────────────────────────
+// ── Gauge Painter 
 
 class _GaugePainter extends CustomPainter {
   final double value;
