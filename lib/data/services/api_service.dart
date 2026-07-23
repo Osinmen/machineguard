@@ -75,4 +75,17 @@ class ApiService {
     } catch (_) {}
     return AppConstants.machineTypes;
   }
+
+  Future<List<String>> getOperatingModes() async {
+    try {
+      final response = await http
+          .get(Uri.parse('$_v1/machines/operating-modes'))
+          .timeout(const Duration(seconds: 60));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return List<String>.from(data['operating_modes']);
+      }
+    } catch (_) {}
+    return AppConstants.operatingModes;
+  }
 }

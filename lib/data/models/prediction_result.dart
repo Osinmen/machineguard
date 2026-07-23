@@ -1,8 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:machine_guard/core/theme/app_theme.dart';
-
-
-enum RiskLevel { healthy, atRisk, critical }
 
 class SensorAlert {
   final String sensor;
@@ -38,6 +36,17 @@ class SensorAlert {
     );
   }
 
+  Map<String, dynamic> toJson() => {
+    'sensor':      sensor,
+    'feature_key': featureKey,
+    'value':       value,
+    'unit':        unit,
+    'status':      status,
+    'message':     message,
+    'warn_range':  warnRange,
+    'crit_range':  critRange,
+  };
+
   bool get isCritical => status == 'CRITICAL';
 
   Color get alertColor => isCritical ? AppColors.red : AppColors.orange;
@@ -49,10 +58,11 @@ class SensorAlert {
 
 class PredictionResult {
   final String machineId;
-  final int prediction;
-  final double riskProbability;
-  final double riskPercentage;
-  final RiskLevel riskLevel;
+  final String predictedClass;       // healthy | bearing | electrical | hydraulic | motor_overheat
+  final double confidence;           // probability of predictedClass, 0.0–1.0
+  final Map<String, double> classProbabilities;
+  final bool isHealthy;
+  final bool lowConfidence;
   final String recommendation;
   final List<SensorAlert> sensorAlerts;
   final int alertCount;
@@ -63,10 +73,11 @@ class PredictionResult {
 
   PredictionResult({
     required this.machineId,
-    required this.prediction,
-    required this.riskProbability,
-    required this.riskPercentage,
-    required this.riskLevel,
+    required this.predictedClass,
+    required this.confidence,
+    required this.classProbabilities,
+    required this.isHealthy,
+    required this.lowConfidence,
     required this.recommendation,
     required this.sensorAlerts,
     required this.alertCount,
@@ -79,10 +90,12 @@ class PredictionResult {
   factory PredictionResult.fromJson(Map<String, dynamic> json) {
     return PredictionResult(
       machineId:      json['machine_id'],
-      prediction:     json['prediction'],
-      riskProbability: (json['risk_probability'] as num).toDouble(),
-      riskPercentage:  (json['risk_percentage'] as num).toDouble(),
-      riskLevel:      _parseRiskLevel(json['risk_level']),
+      predictedClass: json['predicted_class'],
+      confidence:     (json['confidence'] as num).toDouble(),
+      classProbabilities: (json['class_probabilities'] as Map<String, dynamic>)
+          .map((k, v) => MapEntry(k, (v as num).toDouble())),
+      isHealthy:      json['is_healthy'] ?? (json['predicted_class'] == 'healthy'),
+      lowConfidence:  json['low_confidence'] ?? false,
       recommendation: json['recommendation'],
       sensorAlerts:   (json['sensor_alerts'] as List)
                           .map((a) => SensorAlert.fromJson(a))
@@ -90,84 +103,70 @@ class PredictionResult {
       alertCount:     json['alert_count'] ?? 0,
       criticalCount:  json['critical_count'] ?? 0,
       warningCount:   json['warning_count'] ?? 0,
-      modelVersion:   json['model_version'] ?? '1.0.0',
+      modelVersion:   json['model_version'] ?? '2.0.0',
       timestamp:      DateTime.now(),
     );
   }
 
-  static RiskLevel _parseRiskLevel(String level) {
-    switch (level.toUpperCase()) {
-      case 'CRITICAL': return RiskLevel.critical;
-      case 'AT_RISK':  return RiskLevel.atRisk;
-      default:         return RiskLevel.healthy;
-    }
+  // Reuses the same cyan/orange/red visual language the old risk-tier UI
+  // used, but driven by prediction confidence rather than a risk score:
+  // healthy -> cyan, uncertain fault -> orange, confident fault -> red.
+  Color get statusColor {
+    if (isHealthy) return AppColors.cyan;
+    return lowConfidence ? AppColors.orange : AppColors.red;
   }
 
-  Color get riskColor {
-    switch (riskLevel) {
-      case RiskLevel.critical: return AppColors.red;
-      case RiskLevel.atRisk:   return AppColors.orange;
-      case RiskLevel.healthy:  return AppColors.cyan;
-    }
+  String get statusLabel => isHealthy
+      ? 'HEALTHY'
+      : '${predictedClass.replaceAll('_', ' ').toUpperCase()} FAULT';
+
+  IconData get statusIcon {
+    if (isHealthy) return Icons.check_circle_outline;
+    return lowConfidence ? Icons.help_outline : Icons.cancel_outlined;
   }
 
-  String get riskLabel {
-    switch (riskLevel) {
-      case RiskLevel.critical: return 'CRITICAL';
-      case RiskLevel.atRisk:   return 'AT RISK';
-      case RiskLevel.healthy:  return 'HEALTHY';
-    }
+  double get confidencePercentage => confidence * 100;
+
+  // Class probabilities sorted highest first, for the breakdown list.
+  List<MapEntry<String, double>> get sortedProbabilities {
+    final entries = classProbabilities.entries.toList();
+    entries.sort((a, b) => b.value.compareTo(a.value));
+    return entries;
   }
-
-  // Simple HEALTHY / FAULTY label
-  String get statusLabel => prediction == 0 ? 'HEALTHY' : 'FAULTY';
-
-  Color get statusColor => prediction == 0 ? AppColors.cyan : AppColors.red;
-
-  IconData get statusIcon => prediction == 0
-      ? Icons.check_circle_outline
-      : Icons.cancel_outlined;
 
   Map<String, dynamic> toMap() => {
-    'machine_id':      machineId,
-    'prediction':      prediction,
-    'risk_probability': riskProbability,
-    'risk_percentage':  riskPercentage,
-    'risk_level':      riskLevel.name,
-    'recommendation':  recommendation,
-    'sensor_alerts':   sensorAlerts.map((a) => {
-      'sensor':      a.sensor,
-      'feature_key': a.featureKey,
-      'value':       a.value,
-      'unit':        a.unit,
-      'status':      a.status,
-      'message':     a.message,
-      'warn_range':  a.warnRange,
-      'crit_range':  a.critRange,
-    }).toList(),
-    'alert_count':    alertCount,
-    'critical_count': criticalCount,
-    'warning_count':  warningCount,
-    'model_version':  modelVersion,
-    'timestamp':      timestamp.toIso8601String(),
+    'machine_id':          machineId,
+    'predicted_class':     predictedClass,
+    'confidence':          confidence,
+    'class_probabilities': jsonEncode(classProbabilities),
+    'is_healthy':          isHealthy ? 1 : 0,
+    'low_confidence':      lowConfidence ? 1 : 0,
+    'recommendation':      recommendation,
+    'sensor_alerts':       jsonEncode(sensorAlerts.map((a) => a.toJson()).toList()),
+    'alert_count':         alertCount,
+    'critical_count':      criticalCount,
+    'warning_count':       warningCount,
+    'model_version':       modelVersion,
+    'timestamp':           timestamp.toIso8601String(),
   };
 
   factory PredictionResult.fromMap(Map<String, dynamic> map) {
+    final probsRaw = jsonDecode(map['class_probabilities']) as Map<String, dynamic>;
+    final alertsRaw = jsonDecode(map['sensor_alerts']) as List;
     return PredictionResult(
-      machineId:       map['machine_id'],
-      prediction:      map['prediction'],
-      riskProbability: map['risk_probability'],
-      riskPercentage:  map['risk_percentage'],
-      riskLevel:       RiskLevel.values.firstWhere((e) => e.name == map['risk_level']),
-      recommendation:  map['recommendation'],
-      sensorAlerts:    (map['sensor_alerts'] as List? ?? [])
-                           .map((a) => SensorAlert.fromJson(a as Map<String, dynamic>))
-                           .toList(),
-      alertCount:      map['alert_count'] ?? 0,
-      criticalCount:   map['critical_count'] ?? 0,
-      warningCount:    map['warning_count'] ?? 0,
-      modelVersion:    map['model_version'],
-      timestamp:       DateTime.parse(map['timestamp']),
+      machineId:      map['machine_id'],
+      predictedClass: map['predicted_class'],
+      confidence:     (map['confidence'] as num).toDouble(),
+      classProbabilities: probsRaw.map((k, v) => MapEntry(k, (v as num).toDouble())),
+      isHealthy:      map['is_healthy'] == 1,
+      lowConfidence:  map['low_confidence'] == 1,
+      recommendation: map['recommendation'],
+      sensorAlerts:   alertsRaw.map((a) => SensorAlert.fromJson(a)).toList(),
+      alertCount:     map['alert_count'] ?? 0,
+      criticalCount:  map['critical_count'] ?? 0,
+      warningCount:   map['warning_count'] ?? 0,
+      modelVersion:   map['model_version'],
+      timestamp:      DateTime.parse(map['timestamp']),
     );
   }
 }

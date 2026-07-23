@@ -30,16 +30,18 @@ class ResultScreen extends StatelessWidget {
         children: [
           const SizedBox(height: 12),
 
-          // ── Gauge ────────────────────────────────────────────────
+          // ── Gauge (confidence) ──────────────────────────────────
           _buildGauge(result),
           const SizedBox(height: 20),
 
-          // ── HEALTHY / FAULTY badge ───────────────────────────────
+          // ── Predicted fault-type badge ───────────────────────────
           _buildStatusBadge(result),
-          const SizedBox(height: 16),
+          const SizedBox(height: 4),
+          if (result.lowConfidence) _buildLowConfidenceNote(),
+          const SizedBox(height: 20),
 
-          // ── Risk level badge ─────────────────────────────────────
-          _buildRiskBadge(result),
+          // ── Class probability breakdown ──────────────────────────
+          _buildProbabilityBreakdown(result),
           const SizedBox(height: 20),
 
           // ── Recommendation ───────────────────────────────────────
@@ -73,23 +75,23 @@ class ResultScreen extends StatelessWidget {
         height: 220,
         child: CustomPaint(
           painter: _GaugePainter(
-            value: result.riskProbability,
-            color: result.riskColor,
+            value: result.confidence,
+            color: result.statusColor,
           ),
           child: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  '${result.riskPercentage.toStringAsFixed(1)}%',
+                  '${result.confidencePercentage.toStringAsFixed(1)}%',
                   style: TextStyle(
-                    color:      result.riskColor,
+                    color:      result.statusColor,
                     fontSize:   42,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
                 const Text(
-                  'Risk Score',
+                  'Confidence',
                   style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
                 ),
               ],
@@ -100,7 +102,7 @@ class ResultScreen extends StatelessWidget {
     );
   }
 
-  // ── HEALTHY / FAULTY ───────────────────────────────────────────────────────
+  // ── Predicted class badge ─────────────────────────────────────────────────
 
   Widget _buildStatusBadge(PredictionResult result) {
     return Center(
@@ -134,25 +136,79 @@ class ResultScreen extends StatelessWidget {
     );
   }
 
-  // ── Risk Level ─────────────────────────────────────────────────────────────
+  Widget _buildLowConfidenceNote() {
+    return const Center(
+      child: Text(
+        'Confidence below threshold — verify readings before acting',
+        style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
 
-  Widget _buildRiskBadge(PredictionResult result) {
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 7),
-        decoration: BoxDecoration(
-          color:        result.riskColor.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(20),
-          border:       Border.all(color: result.riskColor.withOpacity(0.5)),
-        ),
-        child: Text(
-          'Risk Level: ${result.riskLabel}',
-          style: TextStyle(
-            color:      result.riskColor,
-            fontWeight: FontWeight.w600,
-            fontSize:   14,
+  // ── Class probability breakdown ─────────────────────────────────────────────
+
+  Widget _buildProbabilityBreakdown(PredictionResult result) {
+    return NeonCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'CLASS PROBABILITIES',
+            style: TextStyle(
+              color:      AppColors.cyan,
+              fontWeight: FontWeight.w700,
+              fontSize:   12,
+              letterSpacing: 1,
+            ),
           ),
-        ),
+          const SizedBox(height: 14),
+          ...result.sortedProbabilities.map((entry) => _buildProbabilityRow(
+                entry.key,
+                entry.value,
+                isTop: entry.key == result.predictedClass,
+              )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProbabilityRow(String className, double value, {required bool isTop}) {
+    final color = isTop ? AppColors.cyan : AppColors.textMuted;
+    final label = className.replaceAll('_', ' ');
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(label,
+                  style: TextStyle(
+                    color: isTop ? AppColors.textPrimary : AppColors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: isTop ? FontWeight.w700 : FontWeight.w400,
+                  )),
+              Text('${(value * 100).toStringAsFixed(1)}%',
+                  style: TextStyle(
+                    color: isTop ? AppColors.cyan : AppColors.textMuted,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  )),
+            ],
+          ),
+          const SizedBox(height: 4),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: value.clamp(0.0, 1.0),
+              backgroundColor: AppColors.surfaceLight,
+              valueColor: AlwaysStoppedAnimation(color),
+              minHeight: 6,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -161,11 +217,11 @@ class ResultScreen extends StatelessWidget {
 
   Widget _buildRecommendation(PredictionResult result) {
     return NeonCard(
-      glowColor: result.riskColor,
+      glowColor: result.statusColor,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline, color: result.riskColor, size: 20),
+          Icon(Icons.info_outline, color: result.statusColor, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -357,9 +413,8 @@ class ResultScreen extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           _detailRow('Machine ID',       result.machineId),
-          _detailRow('Status',           result.statusLabel),
-          _detailRow('Risk Score',       '${result.riskPercentage.toStringAsFixed(2)}%'),
-          _detailRow('Risk Level',       result.riskLabel),
+          _detailRow('Predicted Class',  result.statusLabel),
+          _detailRow('Confidence',       '${result.confidencePercentage.toStringAsFixed(2)}%'),
           _detailRow('Sensor Alerts',    '${result.alertCount} (${result.criticalCount} critical, ${result.warningCount} warning)'),
           _detailRow('Model Version',    result.modelVersion),
           _detailRow('Timestamp',        result.timestamp.toString().substring(0, 19)),
@@ -381,7 +436,7 @@ class ResultScreen extends StatelessWidget {
     );
   }
 
-  // ── Actions 
+  // ── Actions
 
   Widget _buildActions(BuildContext context, PredictionResult result) {
     return Column(
@@ -450,7 +505,7 @@ class ResultScreen extends StatelessWidget {
   }
 }
 
-// ── Gauge Painter 
+// ── Gauge Painter
 
 class _GaugePainter extends CustomPainter {
   final double value;

@@ -1,54 +1,55 @@
 import 'package:flutter/material.dart';
-import 'package:machine_guard/data/models/prediction_result.dart';
+import 'package:machine_guard/core/theme/app_theme.dart';
 
+/// Small badge used in dashboard / history list rows to show a
+/// prediction's outcome at a glance. Renamed internally from a
+/// 3-tier risk badge to a status badge — driven by isHealthy /
+/// lowConfidence rather than a risk-level enum, but kept the same
+/// cyan/orange/red visual language and the same widget name so
+/// callers didn't need churn beyond their constructor args.
 class RiskBadge extends StatelessWidget {
-  final RiskLevel riskLevel;
-  final double? riskPercentage;
-  final bool showPercent;
+  final bool   isHealthy;
+  final bool   lowConfidence;
+  final String label;
+  final double percentage; // 0-100, shown as confidence
 
   const RiskBadge({
     super.key,
-    required this.riskLevel,
-    this.riskPercentage,
-    this.showPercent = true,
+    required this.isHealthy,
+    required this.lowConfidence,
+    required this.label,
+    required this.percentage,
   });
+
+  Color get _color {
+    if (isHealthy) return AppColors.cyan;
+    return lowConfidence ? AppColors.orange : AppColors.red;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final result = _mock(riskLevel);
+    final color = _color;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: result.riskColor.withOpacity(0.15),
+        color:        color.withOpacity(0.15),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: result.riskColor.withOpacity(0.6)),
+        border:       Border.all(color: color.withOpacity(0.6)),
       ),
-      child: Text(
-        showPercent && riskPercentage != null
-            ? '${riskPercentage!.toStringAsFixed(1)}%'
-            : result.riskLabel,
-        style: TextStyle(
-          color: result.riskColor,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6, height: 6,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '$label · ${percentage.toStringAsFixed(0)}%',
+            style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700),
+          ),
+        ],
       ),
     );
   }
-
-  // Helper to get color/label from riskLevel without a full result object
- PredictionResult _mock(RiskLevel level) => PredictionResult(
-    machineId: '',
-    prediction: 0,
-    riskProbability: 0,
-    riskPercentage: riskPercentage ?? 0,
-    riskLevel: level,
-    recommendation: '',
-    sensorAlerts: [],        // ADD THIS
-    alertCount: 0,           // ADD THIS
-    criticalCount: 0,        // ADD THIS
-    warningCount: 0,         // ADD THIS
-    modelVersion: '',
-    timestamp: DateTime.now(),
-  );
 }

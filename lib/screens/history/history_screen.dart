@@ -61,8 +61,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Widget _buildFilters(HistoryProvider history) {
-    final filters = ['all', 'atRisk', 'healthy'];
-    final labels = {'all': 'All', 'atRisk': 'At Risk', 'healthy': 'Healthy'};
+    final filters = ['all', 'faulty', 'healthy'];
+    final labels = {'all': 'All', 'faulty': 'Faulty', 'healthy': 'Healthy'};
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -126,10 +126,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
               Container(
                 width: 44, height: 44,
                 decoration: BoxDecoration(
-                  color: result.riskColor.withOpacity(0.15),
+                  color: result.statusColor.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(Icons.memory, color: result.riskColor, size: 22),
+                child: Icon(Icons.memory, color: result.statusColor, size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -150,7 +150,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              RiskBadge(riskLevel: result.riskLevel, riskPercentage: result.riskPercentage),
+              RiskBadge(
+                isHealthy: result.isHealthy,
+                lowConfidence: result.lowConfidence,
+                label: result.isHealthy ? 'Healthy' : result.predictedClass.replaceAll('_', ' '),
+                percentage: result.confidencePercentage,
+              ),
             ],
           ),
         ),

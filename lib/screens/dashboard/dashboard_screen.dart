@@ -91,7 +91,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       children: [
         Expanded(child: _statCard('Total', history.total.toString(), AppColors.textSecondary, Icons.memory)),
         const SizedBox(width: 12),
-        Expanded(child: _statCard('At Risk', history.atRiskCount.toString(), AppColors.red, Icons.warning_rounded)),
+        Expanded(child: _statCard('Faulty', history.faultyCount.toString(), AppColors.red, Icons.warning_rounded)),
         const SizedBox(width: 12),
         Expanded(child: _statCard('Healthy', history.healthyCount.toString(), AppColors.cyan, Icons.check_circle)),
       ],
@@ -197,10 +197,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Container(
               width: 40, height: 40,
               decoration: BoxDecoration(
-                color: result.riskColor.withOpacity(0.15),
+                color: result.statusColor.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(Icons.precision_manufacturing, color: result.riskColor, size: 20),
+              child: Icon(Icons.precision_manufacturing, color: result.statusColor, size: 20),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -215,7 +215,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
             ),
-            RiskBadge(riskLevel: result.riskLevel, riskPercentage: result.riskPercentage),
+            RiskBadge(
+              isHealthy: result.isHealthy,
+              lowConfidence: result.lowConfidence,
+              label: result.isHealthy ? 'Healthy' : result.predictedClass.replaceAll('_', ' '),
+              percentage: result.confidencePercentage,
+            ),
           ],
         ),
       ),

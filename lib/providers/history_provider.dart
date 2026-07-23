@@ -4,21 +4,21 @@ import 'package:machine_guard/data/services/database_service.dart';
 
 class HistoryProvider extends ChangeNotifier {
   List<PredictionResult> _all = [];
-  String _filter = 'all'; // all | atRisk | healthy
+  String _filter = 'all'; // all | faulty | healthy
 
   List<PredictionResult> get filtered {
-    if (_filter == 'atRisk') {
-      return _all.where((r) => r.riskLevel != RiskLevel.healthy).toList();
+    if (_filter == 'faulty') {
+      return _all.where((r) => !r.isHealthy).toList();
     } else if (_filter == 'healthy') {
-      return _all.where((r) => r.riskLevel == RiskLevel.healthy).toList();
+      return _all.where((r) => r.isHealthy).toList();
     }
     return _all;
   }
 
   String get filter => _filter;
   int get total => _all.length;
-  int get atRiskCount => _all.where((r) => r.riskLevel != RiskLevel.healthy).length;
-  int get healthyCount => _all.where((r) => r.riskLevel == RiskLevel.healthy).length;
+  int get faultyCount => _all.where((r) => !r.isHealthy).length;
+  int get healthyCount => _all.where((r) => r.isHealthy).length;
 
   Future<void> load() async {
     _all = await DatabaseService.getAllPredictions();

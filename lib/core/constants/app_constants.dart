@@ -4,27 +4,36 @@ class AppConstants {
   static const String defaultApiUrl = 'https://machinefaultdetection.onrender.com';
   static const String apiV1         = '/api/v1';
 
-  // Risk thresholds — must match backend config.py
-  static const double highRiskThreshold     = 0.50;
-  static const double criticalRiskThreshold = 0.75;
-
   // SharedPreferences keys
   static const String prefApiUrl = 'api_url';
 
   // DB
   static const String dbName       = 'machineguard.db'; //machine name database 
-  static const int    dbVersion    = 2;
+  static const int    dbVersion    = 3;
   static const String tableHistory = 'prediction_history';
 
-  // Real machine types from training dataset
+  // Categories the model was actually trained on — must match the
+  // backend's VALID_MACHINE_TYPES / VALID_OPERATING_MODES exactly,
+  // since they're baked into the fitted OneHotEncoder.
   static const List<String> machineTypes = [
-    'CMM',
-    'CNC Lathe',
-    'Conveyor Belt',
-    'Industrial Chiller',
-    'Injection Molder',
-    'Labeler',
+    'CNC',
+    'Compressor',
     'Pump',
-    'Vacuum Packer',
+    'Robotic Arm',
+  ];
+
+  static const List<String> operatingModes = [
+    'idle',
+    'normal',
+    'peak',
+  ];
+
+  // All 5 possible fault-type outputs from the model
+  static const List<String> faultTypes = [
+    'healthy',
+    'bearing',
+    'electrical',
+    'hydraulic',
+    'motor_overheat',
   ];
 }
